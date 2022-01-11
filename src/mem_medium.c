@@ -34,6 +34,7 @@ void *emalloc_medium(unsigned long size)
     }
     else
     {
+
     }
     return (void *)0;
 }

@@ -31,6 +31,7 @@ void *mark_memarea_and_get_user_ptr(void *ptr, unsigned long size, MemKind k)
     *((unsigned long *)((unsigned long)ptr + 8UL)) = magic_value;
     *((unsigned long *)((unsigned long)ptr + size - 16UL)) = magic_value;
     *((unsigned long *)((unsigned long)ptr + size - 8UL)) = size;
+
     return (void *)((unsigned long)ptr + 16UL);
 }
 
@@ -54,7 +55,7 @@ Alloc mark_check_and_get_alloc(void *ptr)
     // Return allocation informations.
     Alloc allocation = {};
     allocation.kind = kind;
-    allocation.ptr = ptr;
+    allocation.ptr = ptr - 2 * 8;
     allocation.size = size_start;
     return allocation;
 }
