@@ -14,16 +14,16 @@ extern "C" {
 #include <stdio.h>
 #include <stdlib.h>
 
-#define handle_fatalError(msg)						\
+#define handle_fatalError(msg)                        \
     do { char c[1048] = {}; snprintf(c, 1048, "%s %s %d",msg,           \
-				     __FILE__, __LINE__);		\
-	perror(c); exit(EXIT_FAILURE); } while(0)
+                     __FILE__, __LINE__);        \
+    perror(c); exit(EXIT_FAILURE); } while(0)
 
 #define SMALLALLOC 64
 // SMALLALLOC + 2 MAGIC + 2 Tailles sur 8o == 96o 
 #define CHUNKSIZE 96
 // 128 Kio == 128 * 1024 == 2**17 == (1<<17)
-#define LARGEALLOC (1<<17) 
+#define LARGEALLOC (1<<17)
 
 // 2**13o == 16Kio
 #define FIRST_ALLOC_SMALL (CHUNKSIZE <<7) // 96o * 128
@@ -31,10 +31,12 @@ extern "C" {
 #define FIRST_ALLOC_MEDIUM (1<<FIRST_ALLOC_MEDIUM_EXPOSANT)
 
 // values from 0 to 3 fit in 2 bit
-typedef enum _MemKind { SMALL_KIND, MEDIUM_KIND, LARGE_KIND } MemKind;
+typedef enum _MemKind {
+    SMALL_KIND, MEDIUM_KIND, LARGE_KIND
+} MemKind;
 
 #define TZL_SIZE 48
-    
+
 typedef struct _MemArena {
     void *chunkpool;
     void *TZL[TZL_SIZE];
@@ -54,7 +56,7 @@ unsigned long knuth_mmix_one_round(unsigned long in);
 void *mark_memarea_and_get_user_ptr(void *ptr, unsigned long size, MemKind k);
 Alloc mark_check_and_get_alloc(void *ptr);
 unsigned int nb_TZL_entries();
-    
+
 unsigned long mem_realloc_small();
 unsigned long mem_realloc_medium();
 

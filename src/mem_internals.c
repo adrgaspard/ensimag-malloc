@@ -10,42 +10,44 @@
 #include "mem.h"
 #include "mem_internals.h"
 
-unsigned long knuth_mmix_one_round(unsigned long in)
-{
+unsigned long knuth_mmix_one_round(unsigned long in) {
     return in * 6364136223846793005UL % 1442695040888963407UL;
 }
 
-void *mark_memarea_and_get_user_ptr(void *ptr, unsigned long size, MemKind k)
-{
+void *mark_memarea_and_get_user_ptr(void *ptr, unsigned long size, MemKind k) {
     // Validation.
     assert(ptr != NULL);
     assert(k == SMALL_KIND || k == MEDIUM_KIND || k == LARGE_KIND);
 
     // Define MMIX value and replace it's 2 LSB by the kind value.
-    unsigned long magic_value = knuth_mmix_one_round((unsigned long)ptr);
+    uint64_t magic_value = knuth_mmix_one_round((uint64_t) ptr);
     magic_value &= ~(0b11UL);
     magic_value += k;
-    
-    // Write memory area informations.
-    *((unsigned long *)((unsigned long)ptr + 0UL)) = size;
-    *((unsigned long *)((unsigned long)ptr + 8UL)) = magic_value;
-    *((unsigned long *)((unsigned long)ptr + size - 16UL)) = magic_value;
-    *((unsigned long *)((unsigned long)ptr + size - 8UL)) = size;
 
-    return (void *)((unsigned long)ptr + 16UL);
+    // Write memory area informations.
+    *((uint64_t *) ((uint64_t) ptr + 0 * sizeof(uint64_t))) = size;
+    *((uint64_t *) ((uint64_t) ptr + 1 * sizeof(uint64_t))) = magic_value;
+    *((uint64_t *) ((uint64_t) ptr + size - 2 * sizeof(uint64_t))) = magic_value;
+    *((uint64_t *) ((uint64_t) ptr + size - 1 * sizeof(uint64_t))) = size;
+    printf("Size start %lu / Size end %lu / Magic value start %lu / Magic value end %lu / Kind %d\n",
+           *((uint64_t *) ((uint64_t) ptr + 0 * sizeof(uint64_t))),
+           *((uint64_t *) ((uint64_t) ptr + size - 1 * sizeof(uint64_t))),
+           *((uint64_t *) ((uint64_t) ptr + 1 * sizeof(uint64_t))),
+           *((uint64_t *) ((uint64_t) ptr + size - 2 * sizeof(uint64_t))),
+           (int32_t) k);
+    return (void *) ((uint64_t) ptr + 2 * sizeof(uint64_t));
 }
 
-Alloc mark_check_and_get_alloc(void *ptr)
-{
+Alloc mark_check_and_get_alloc(void *ptr) {
     // Validation.
     assert(ptr != NULL);
 
     // Find values before the usable zone.
-    unsigned long magic_value_start = *((unsigned long *)((unsigned long)ptr - 8UL));
-    unsigned long size_start = *((unsigned long *)((unsigned long)ptr - 16UL));
-    unsigned long magic_value_end = *((unsigned long *)((unsigned long)ptr + size_start - 32UL));
-    unsigned long size_end = *((unsigned long *)((unsigned long)ptr + size_start - 24UL));
-    MemKind kind = (MemKind)(magic_value_start % 4);
+    uint64_t magic_value_start = *((uint64_t *) ((uint64_t) ptr - 1 * sizeof(uint64_t)));
+    uint64_t size_start = *((uint64_t *) ((uint64_t) ptr - 2 * sizeof(uint64_t)));
+    uint64_t magic_value_end = *((uint64_t *) ((uint64_t) ptr + size_start - 4 * sizeof(uint64_t)));
+    uint64_t size_end = *((uint64_t *) ((uint64_t) ptr + size_start - 3 * sizeof(uint64_t)));
+    MemKind kind = (MemKind) (magic_value_start % 4);
 
     // Data integrity verifications.
     assert(kind == SMALL_KIND || kind == MEDIUM_KIND || kind == LARGE_KIND);
@@ -60,8 +62,7 @@ Alloc mark_check_and_get_alloc(void *ptr)
     return allocation;
 }
 
-unsigned long mem_realloc_small()
-{
+unsigned long mem_realloc_small() {
     assert(arena.chunkpool == 0);
     unsigned long size = (FIRST_ALLOC_SMALL << arena.small_next_exponant);
     arena.chunkpool = mmap(0,
@@ -76,8 +77,7 @@ unsigned long mem_realloc_small()
     return size;
 }
 
-unsigned long mem_realloc_medium()
-{
+unsigned long mem_realloc_medium() {
     uint32_t indice = FIRST_ALLOC_MEDIUM_EXPOSANT + arena.medium_next_exponant;
     assert(arena.TZL[indice] == 0);
     unsigned long size = (FIRST_ALLOC_MEDIUM << arena.medium_next_exponant);
@@ -92,14 +92,13 @@ unsigned long mem_realloc_medium()
         handle_fatalError("medium realloc");
     // align allocation to a multiple of the size
     // for buddy algo
-    arena.TZL[indice] += (size - (((intptr_t)arena.TZL[indice]) % size));
+    arena.TZL[indice] += (size - (((intptr_t) arena.TZL[indice]) % size));
     arena.medium_next_exponant++;
     return size; // lie on allocation size, but never free
 }
 
 // used for test in buddy algo
-unsigned int nb_TZL_entries()
-{
+unsigned int nb_TZL_entries() {
     int nb = 0;
 
     for (int i = 0; i < TZL_SIZE; i++)

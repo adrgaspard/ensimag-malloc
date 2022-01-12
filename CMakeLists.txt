@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.6)
-if(COMMAND cmake_policy)
-  cmake_policy(SET CMP0003 NEW)
-endif(COMMAND cmake_policy)
+if (COMMAND cmake_policy)
+    cmake_policy(SET CMP0003 NEW)
+endif (COMMAND cmake_policy)
 
 project(emalloc)
 enable_testing()
@@ -17,8 +17,8 @@ set(VARIANTE_LOGINS andrieug capellet)
 
 list(SORT VARIANTE_LOGINS)
 if (VARIANTE_LOGINS MATCHES "login[123]")
-  message(FATAL_ERROR "** ERREUR **: Vous devez modifier CMakeLists.txt pour y mettre vos logins")
-endif()
+    message(FATAL_ERROR "** ERREUR **: Vous devez modifier CMakeLists.txt pour y mettre vos logins")
+endif ()
 
 #######
 # Compilation standard avec googletest
@@ -29,32 +29,32 @@ endif()
 # sur centOS6, c'est une bibliothèque avec son équivalent de pkg-config
 # sinon, on utilise l'autodetection de Cmake
 ###
-if(EXISTS /usr/src/gtest)
+if (EXISTS /usr/src/gtest)
     add_subdirectory(/usr/src/gtest ./gtest)
-else(EXISTS /usr/src/gtest)
-  if(EXISTS /usr/bin/gtest-config)
-    execute_process(COMMAND gtest-config --cppflags --cxxflags OUTPUT_VARIABLE CENTOS_GTEST_CFLAGS)
-    execute_process(COMMAND gtest-config --ldflags --libs OUTPUT_VARIABLE CENTOS_GTEST_LDFLAGS)
-    string(STRIP "${CENTOS_GTEST_CFLAGS}" CENTOS_GTEST_CFLAGS)
-    string(STRIP "${CENTOS_GTEST_LDFLAGS}" CENTOS_GTEST_LDFLAGS)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CENTOS_GTEST_CFLAGS}")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${CENTOS_GTEST_LDFLAGS} -lgtest_main")
-  else(EXISTS /usr/bin/gtest-config)
-    find_package(GTest REQUIRED)
-    include_directories(${GTEST_INCLUDE_DIRS})
-  endif(EXISTS /usr/bin/gtest-config)
-endif(EXISTS /usr/src/gtest)
+else (EXISTS /usr/src/gtest)
+    if (EXISTS /usr/bin/gtest-config)
+        execute_process(COMMAND gtest-config --cppflags --cxxflags OUTPUT_VARIABLE CENTOS_GTEST_CFLAGS)
+        execute_process(COMMAND gtest-config --ldflags --libs OUTPUT_VARIABLE CENTOS_GTEST_LDFLAGS)
+        string(STRIP "${CENTOS_GTEST_CFLAGS}" CENTOS_GTEST_CFLAGS)
+        string(STRIP "${CENTOS_GTEST_LDFLAGS}" CENTOS_GTEST_LDFLAGS)
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CENTOS_GTEST_CFLAGS}")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${CENTOS_GTEST_LDFLAGS} -lgtest_main")
+    else (EXISTS /usr/bin/gtest-config)
+        find_package(GTest REQUIRED)
+        include_directories(${GTEST_INCLUDE_DIRS})
+    endif (EXISTS /usr/bin/gtest-config)
+endif (EXISTS /usr/src/gtest)
 
 ##
 # Recherche du répertoire avec les headers python
 ##
-if(EXISTS /usr/include/python3.6m/Python.h)
-  set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -I/usr/include/python3.6m")
-else(EXISTS /usr/include/python3.6m/Python.h)
-  if (EXISTS /usr/include/python3.8/Python.h)
-    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -I/usr/include/python3.8")
-  endif (EXISTS /usr/include/python3.8/Python.h)
-endif(EXISTS /usr/include/python3.6m/Python.h)
+if (EXISTS /usr/include/python3.6m/Python.h)
+    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -I/usr/include/python3.6m")
+else (EXISTS /usr/include/python3.6m/Python.h)
+    if (EXISTS /usr/include/python3.8/Python.h)
+        set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -I/usr/include/python3.8")
+    endif (EXISTS /usr/include/python3.8/Python.h)
+endif (EXISTS /usr/include/python3.6m/Python.h)
 
 ##
 # Si vous utilisé plusieurs fichiers, en plus de mem.c et les autres,
@@ -97,8 +97,8 @@ set(CPACK_PACKAGE_VERSION_MINOR "0")
 set(CPACK_PACKAGE_VERSION_PATCH ${LOGINS_SANS_POINTVIRGULE})
 set(CPACK_SOURCE_GENERATOR "TGZ")
 set(CPACK_SOURCE_IGNORE_FILES
-  "~$"
-  "\\\\.o$"
-  "^${PROJECT_SOURCE_DIR}/build/"
-)
+        "~$"
+        "\\\\.o$"
+        "^${PROJECT_SOURCE_DIR}/build/"
+        )
 include(CPack)
