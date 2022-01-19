@@ -368,7 +368,6 @@ int main() {
     ID id;
     size_t size;
 
-    setbuf(stdout, NULL);
     init(); /* initialisation de l'interpreteur */
 
     while (1) {
