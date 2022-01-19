@@ -10,114 +10,70 @@
 #include "mem.h"
 #include "mem_internals.h"
 
-
-static void fork_block(unsigned int block_to_divide_tzl_index) {
-    // Validation.
-    assert(block_to_divide_tzl_index > 0 &&
-           block_to_divide_tzl_index < FIRST_ALLOC_MEDIUM_EXPOSANT + arena.medium_next_exponant);
-    assert(arena.TZL[block_to_divide_tzl_index]);
-
-    // Get new blocks address.
-    void *first_block_addr = arena.TZL[block_to_divide_tzl_index];
-    void *second_block_addr = (void *) (((uint64_t) first_block_addr) ^
-                                        ((uint64_t) block_to_divide_tzl_index - 1UL));
-
-    // Delete the old block from the TZL.
-    arena.TZL[block_to_divide_tzl_index] = (void *) (*((uint64_t *) arena.TZL[block_to_divide_tzl_index]));
-
-    // Add the two new blocks to the TZL.
-    *((uint64_t *) first_block_addr) = (uint64_t) second_block_addr;
-    *((uint64_t *) second_block_addr) = (uint64_t) arena.TZL[block_to_divide_tzl_index - 1];
-    arena.TZL[block_to_divide_tzl_index - 1] = first_block_addr;
+static uint64_t get_buddy_value(uint64_t value, uint64_t tzl_index) {
+    return value ^ (1 << tzl_index);
 }
 
-static void merge_block(void *block_addr, uint32_t blocks_to_merge_tzl_index) {
-    // Validation.
-    assert(block_addr != NULL);
-    assert(blocks_to_merge_tzl_index < FIRST_ALLOC_MEDIUM_EXPOSANT + arena.medium_next_exponant - 1 &&
-           blocks_to_merge_tzl_index >= 0);
-    printf("Block address : %lu\n", (uint64_t) block_addr);
+static void *get_next_block(void *block) {
+    uint64_t *tmp = (uint64_t *)block;
+    uint64_t next_address = *tmp;
+    return (void *) next_address;
+}
 
-    // Get buddy block address.
-    void *buddy_addr = (void *) ((uint64_t) block_addr ^ (uint64_t) blocks_to_merge_tzl_index);
-    printf("Buddy address : %lu\n", (uint64_t) buddy_addr);
+static void set_next_block(void *block, void *next) {
+    uint64_t *tmp = (uint64_t *)block;
+    uint64_t next_address = (uint64_t) next;
+    *tmp = next_address;
+}
 
-    // Check whether the buddy is free or not.
-    void *tmp = arena.TZL[blocks_to_merge_tzl_index];
-    bool buddy_found = false;
-    while (tmp != NULL) {
-        printf("Tmp : %p\n", tmp);
-        if (buddy_addr == tmp) {
-            buddy_found = true;
-            printf("Buddy is free !\n");
-            break;
+static void push_on_tzl_stack(uint64_t tzl_index, void *block) {
+    void *next = arena.TZL[tzl_index];
+    uint64_t *first = (uint64_t *) block;
+    *first = (uint64_t) next;
+    arena.TZL[tzl_index] = block;
+}
+
+static void *pop_on_tzl_stack(uint64_t tzl_index) {
+    void *result = arena.TZL[tzl_index];
+    assert(result != NULL);
+    arena.TZL[tzl_index] = get_next_block(result);
+    set_next_block(result, NULL);
+    return result;
+}
+
+static bool is_block_in_tzl_stack(uint64_t tzl_index, uint64_t block_address) {
+    void *iterator = arena.TZL[tzl_index];
+    while (iterator != NULL) {
+        if ((uint64_t) iterator == block_address) {
+            return true;
         }
-        tmp = (void *) (*((uint64_t *) tmp));
+        iterator = get_next_block(iterator);
     }
-    if (!buddy_found) {
-        printf("Buddy is allocated !\n");
-        return;
-    }
+    return false;
+}
 
-    // Swap the initial block and his buddy if the buddy has a lower address than the initial block.
-    if ((uint64_t) buddy_addr < (uint64_t) block_addr) {
-        void *swap = buddy_addr;
-        buddy_addr = block_addr;
-        block_addr = swap;
-        printf("Swap ! Block address : %lu & Buddy address : %lu\n", (uint64_t) block_addr,
-               (uint64_t) buddy_addr);
-    }
-
-    // Delete two blocks from the TZL.
-    bool has_deleted_current = false;
-    uint8_t nb_blocks_remaining = 2;
+static void remove_block_from_tzl_stack(uint64_t tzl_index, uint64_t block_address) {
+    // Initialization.
     void *previous = NULL;
-    void *current = arena.TZL[blocks_to_merge_tzl_index];
+    void *current = arena.TZL[tzl_index];
     void *next = NULL;
-    printf("Deleting old blocks...\n");
-    while (current != NULL && nb_blocks_remaining > 0) {
-        has_deleted_current = false;
-        next = (void *) (*((uint64_t *) current));
-        printf("Previous : %p / Current : %p / Next : %p\n", previous, current, next);
-        if (current == block_addr || current == buddy_addr) {
-            if (previous) {
-                *((uint64_t *) previous) = (uint64_t) next;
+    // Iterate over the chunks.
+    while (current != NULL) {
+        next = get_next_block(current);
+        if ((uint64_t) current == block_address) {
+            if (previous == NULL) {
+                arena.TZL[tzl_index] = next;
             } else {
-                arena.TZL[blocks_to_merge_tzl_index] = next;
+                set_next_block(previous, next);
             }
-            nb_blocks_remaining--;
-            has_deleted_current = true;
-        }
-        if (has_deleted_current) {
+            set_next_block(current, NULL);
+            return;
+        } else {
             previous = current;
         }
         current = next;
     }
-    assert(nb_blocks_remaining == 0);
-
-    // Add the merged block to the TZL.
-    *((uint64_t *) block_addr) = (uint64_t) arena.TZL[blocks_to_merge_tzl_index + 1];
-    arena.TZL[blocks_to_merge_tzl_index + 1] = block_addr;
-    if (blocks_to_merge_tzl_index < FIRST_ALLOC_MEDIUM_EXPOSANT + arena.medium_next_exponant - 2) {
-        printf("--------------------- New call with index %u ---------------------\n", blocks_to_merge_tzl_index + 1);
-        merge_block(block_addr, blocks_to_merge_tzl_index + 1);
-    }
-}
-
-static void *get_tzl_block(unsigned int tzl_index, bool allocate) {
-    if (!arena.TZL[tzl_index]) {
-        if (tzl_index == FIRST_ALLOC_MEDIUM_EXPOSANT + arena.medium_next_exponant - 1) {
-            mem_realloc_medium();
-        } else {
-            get_tzl_block(tzl_index + 1, false);
-        }
-        fork_block(tzl_index + 1);
-    }
-    void *block = arena.TZL[tzl_index];
-    if (allocate) {
-        arena.TZL[tzl_index] = (void *) (*((uint64_t *) block));
-    }
-    return block;
+    assert(0);
 }
 
 unsigned int puiss2(unsigned long size) {
@@ -136,13 +92,31 @@ void *emalloc_medium(unsigned long size) {
     // Validation.
     assert(size < LARGEALLOC);
     assert(size > SMALLALLOC);
-
-    // Allocate memory.
+    // Find the first index that have at least one block free.
     uint64_t real_size = size + 32;
-    unsigned int tzl_index = puiss2(real_size);
-    void *chunk = get_tzl_block(tzl_index, true);
-    printf("TZL Index on alloc : %u\n", tzl_index);
-    return mark_memarea_and_get_user_ptr(chunk, real_size, MEDIUM_KIND);
+    uint64_t tzl_index = puiss2(real_size);
+    uint64_t iterator_for_find = tzl_index;
+    while (arena.TZL[iterator_for_find] == NULL) {
+        iterator_for_find++;
+        if (iterator_for_find == FIRST_ALLOC_MEDIUM_EXPOSANT + arena.medium_next_exponant) {
+            mem_realloc_medium();
+            break;
+        }
+    }
+    // Get the first block address and delete it from the TZL.
+    uint64_t iterator_for_fork = iterator_for_find;
+    uint64_t block_address = (uint64_t) arena.TZL[iterator_for_fork];
+    pop_on_tzl_stack(iterator_for_fork);
+    // Fork bigger blocks until there is a correctly sized available block.
+    while (iterator_for_fork > tzl_index) {
+        iterator_for_fork--;
+        // Get the buddy block address.
+        uint64_t buddy_address = get_buddy_value(block_address, iterator_for_fork);
+        // Add the buddy to the TZL.
+        push_on_tzl_stack(iterator_for_fork, (void *)buddy_address);
+    }
+    // Remove the block from the TZL, mark it and return it.
+    return mark_memarea_and_get_user_ptr((void *) block_address, real_size, MEDIUM_KIND);
 }
 
 void efree_medium(Alloc a) {
@@ -150,14 +124,28 @@ void efree_medium(Alloc a) {
     assert(a.kind == MEDIUM_KIND);
     assert(a.size < LARGEALLOC);
     assert(a.size > SMALLALLOC);
-
-    // Free memory.
-    unsigned int tzl_index = puiss2(a.size + 32);
-    printf("TZL Index on free : %u\n", tzl_index);
-    printf("Size start %lu / Size end %lu / Magic value start %lu / Magic value end %lu / Kind %d\n",
-           *((uint64_t *) ((uint64_t) a.ptr + 0UL)),
-           *((uint64_t *) ((uint64_t) a.ptr + a.size - 8UL)),
-           *((uint64_t *) ((uint64_t) a.ptr + 8UL)),
-           *((uint64_t *) ((uint64_t) a.ptr + a.size - 16UL)), (int) a.kind);
-    merge_block((void *) ((uint64_t) a.ptr - 16UL), tzl_index);
+    // Variable initialization.
+    uint64_t tzl_index_iterator = puiss2(a.size);
+    uint64_t block_address = (uint64_t) a.ptr;
+    uint64_t buddy_address;
+    // Iteratively merge blocks if needed.
+    while (tzl_index_iterator < FIRST_ALLOC_MEDIUM_EXPOSANT + arena.medium_next_exponant - 2) {
+        // Get buddy block address.
+        buddy_address = get_buddy_value(block_address, tzl_index_iterator);
+        if (is_block_in_tzl_stack(tzl_index_iterator, buddy_address)) {
+            // Remove the buddy block from the TZL.
+            remove_block_from_tzl_stack(tzl_index_iterator, buddy_address);
+            // Swap the initial block and his buddy if the buddy has a lower address than the initial block.
+            if (block_address > buddy_address) {
+                uint64_t tmp_value = block_address;
+                block_address = buddy_address;
+                buddy_address = tmp_value;
+            }
+            // Increment the TZL index iterator.
+            tzl_index_iterator++;
+        } else {
+            push_on_tzl_stack(tzl_index_iterator, (void *) block_address);
+            break;
+        }
+    }
 }

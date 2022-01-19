@@ -6,8 +6,10 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <assert.h>
 #include <sys/mman.h>
+#include <stdint.h>
 #include "mem.h"
 #include "mem_internals.h"
 
@@ -15,24 +17,17 @@
 
 MemArena arena = {};
 
-/* ecrire votre code ici */
-
 void *emalloc(unsigned long size) {
-    /*  ecrire votre code ici */
-    if (size == 0)
+    if (size <= 0)
         return NULL;
-
-    if (size >= LARGEALLOC)
+    else if (size >= LARGEALLOC)
         return emalloc_large(size);
     else if (size <= SMALLALLOC)
-        return emalloc_small(size); // allocation de taille CHUNKSIZE
-    else
-        return emalloc_medium(size);
+        return emalloc_small(size);
+    else return emalloc_medium(size);
 }
 
 void efree(void *ptr) {
-    /* ecrire votre code ici */
-
     Alloc a = mark_check_and_get_alloc(ptr);
     switch (a.kind) {
         case SMALL_KIND:

@@ -18,46 +18,35 @@ void *mark_memarea_and_get_user_ptr(void *ptr, unsigned long size, MemKind k) {
     // Validation.
     assert(ptr != NULL);
     assert(k == SMALL_KIND || k == MEDIUM_KIND || k == LARGE_KIND);
-
     // Define MMIX value and replace it's 2 LSB by the kind value.
     uint64_t magic_value = knuth_mmix_one_round((uint64_t) ptr);
     magic_value &= ~(0b11UL);
     magic_value += k;
-
     // Write memory area informations.
     *((uint64_t *) ((uint64_t) ptr + 0 * sizeof(uint64_t))) = size;
     *((uint64_t *) ((uint64_t) ptr + 1 * sizeof(uint64_t))) = magic_value;
     *((uint64_t *) ((uint64_t) ptr + size - 2 * sizeof(uint64_t))) = magic_value;
     *((uint64_t *) ((uint64_t) ptr + size - 1 * sizeof(uint64_t))) = size;
-    printf("Size start %lu / Size end %lu / Magic value start %lu / Magic value end %lu / Kind %d\n",
-           *((uint64_t *) ((uint64_t) ptr + 0 * sizeof(uint64_t))),
-           *((uint64_t *) ((uint64_t) ptr + size - 1 * sizeof(uint64_t))),
-           *((uint64_t *) ((uint64_t) ptr + 1 * sizeof(uint64_t))),
-           *((uint64_t *) ((uint64_t) ptr + size - 2 * sizeof(uint64_t))),
-           (int32_t) k);
-    return (void *) ((uint64_t) ptr + 2 * sizeof(uint64_t));
+    return (void *) ((uint64_t) ptr) + 2 * sizeof(uint64_t);
 }
 
 Alloc mark_check_and_get_alloc(void *ptr) {
     // Validation.
     assert(ptr != NULL);
-
-    // Find values before the usable zone.
+    // Find values.
     uint64_t magic_value_start = *((uint64_t *) ((uint64_t) ptr - 1 * sizeof(uint64_t)));
     uint64_t size_start = *((uint64_t *) ((uint64_t) ptr - 2 * sizeof(uint64_t)));
     uint64_t magic_value_end = *((uint64_t *) ((uint64_t) ptr + size_start - 4 * sizeof(uint64_t)));
     uint64_t size_end = *((uint64_t *) ((uint64_t) ptr + size_start - 3 * sizeof(uint64_t)));
     MemKind kind = (MemKind) (magic_value_start % 4);
-
     // Data integrity verifications.
     assert(kind == SMALL_KIND || kind == MEDIUM_KIND || kind == LARGE_KIND);
     assert(magic_value_start == magic_value_end);
     assert(size_start == size_end);
-
     // Return allocation informations.
     Alloc allocation = {};
     allocation.kind = kind;
-    allocation.ptr = ptr - 2 * 8;
+    allocation.ptr = (void *) ((uint64_t)ptr - 2 * sizeof(uint64_t));
     allocation.size = size_start;
     return allocation;
 }
