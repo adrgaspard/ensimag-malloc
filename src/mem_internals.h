@@ -53,19 +53,27 @@ typedef struct _Alloc {
 extern MemArena arena;
 
 unsigned long knuth_mmix_one_round(unsigned long in);
+
 void *mark_memarea_and_get_user_ptr(void *ptr, unsigned long size, MemKind k);
+
 Alloc mark_check_and_get_alloc(void *ptr);
+
 unsigned int nb_TZL_entries();
 
 unsigned long mem_realloc_small();
+
 unsigned long mem_realloc_medium();
 
 void *emalloc_small(unsigned long size);
+
 void *emalloc_medium(unsigned long size);
+
 void *emalloc_large(unsigned long size);
 
 void efree_small(Alloc a);
+
 void efree_medium(Alloc a);
+
 void efree_large(Alloc a);
 
 #ifdef __cplusplus

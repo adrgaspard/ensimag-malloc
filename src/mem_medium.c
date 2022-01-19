@@ -15,13 +15,13 @@ static uint64_t get_buddy_value(uint64_t value, uint64_t tzl_index) {
 }
 
 static void *get_next_block(void *block) {
-    uint64_t *tmp = (uint64_t *)block;
+    uint64_t *tmp = (uint64_t *) block;
     uint64_t next_address = *tmp;
     return (void *) next_address;
 }
 
 static void set_next_block(void *block, void *next) {
-    uint64_t *tmp = (uint64_t *)block;
+    uint64_t *tmp = (uint64_t *) block;
     uint64_t next_address = (uint64_t) next;
     *tmp = next_address;
 }
@@ -113,7 +113,7 @@ void *emalloc_medium(unsigned long size) {
         // Get the buddy block address.
         uint64_t buddy_address = get_buddy_value(block_address, iterator_for_fork);
         // Add the buddy to the TZL.
-        push_on_tzl_stack(iterator_for_fork, (void *)buddy_address);
+        push_on_tzl_stack(iterator_for_fork, (void *) buddy_address);
     }
     // Remove the block from the TZL, mark it and return it.
     return mark_memarea_and_get_user_ptr((void *) block_address, real_size, MEDIUM_KIND);

@@ -46,7 +46,7 @@ Alloc mark_check_and_get_alloc(void *ptr) {
     // Return allocation informations.
     Alloc allocation = {};
     allocation.kind = kind;
-    allocation.ptr = (void *) ((uint64_t)ptr - 2 * sizeof(uint64_t));
+    allocation.ptr = (void *) ((uint64_t) ptr - 2 * sizeof(uint64_t));
     allocation.size = size_start;
     return allocation;
 }

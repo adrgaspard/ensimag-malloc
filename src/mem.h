@@ -16,6 +16,7 @@ extern "C" {
 #endif
 
 void *emalloc(unsigned long size);
+
 void efree(void *ptr);
 
 #ifdef __cplusplus
